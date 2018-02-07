@@ -7,21 +7,21 @@ from __future__ import print_function
 class Network(object):
 
   def __init__(self, sess, name=None):
-    pass
+    raise NotImplementedError
 
   def build_output_op(self, input_layer, hidden_sizes, output_size,
                       weights_initializer, bias_initializer,
                       hidden_activation_fn, output_activation_fn, trainable):
-    pass
+    raise NotImplementedError
 
   def create_copy_op(self, network_target):
-    pass
+    raise NotImplementedError
 
   def run_copy_op(self):
-    pass
+    raise NotImplementedError
 
   def calc_actions(self, observation):
-    pass
+    raise NotImplementedError
 
   def calc_outputs(self, observation):
-    pass
+    raise NotImplementedError

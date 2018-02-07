@@ -8,7 +8,7 @@ from __future__ import print_function
 class View(object):
 
   def __init__(self, name):
-    pass
+    self.name = name
 
-  def render(self):
-    pass
+  def render(self, items):
+    raise NotImplementedError

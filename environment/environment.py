@@ -12,13 +12,16 @@ class Environment(object):
   # observation_dims: the size of the screen that will be fed into the network
   # view: the object that will render the screen
   def __init__(self, name, actions, observation_dims, view):
-    pass
+    self.name = name
+    self.actions = actions
+    self.observation_dims = observation_dims
+    self.view = view
 
   def new_game(self):
-    pass
+    raise NotImplementedError
 
-  def step(self):
-    pass
+  def step(self, action):
+    raise NotImplementedError
 
-  def preprocess(self):
-    pass
+  def preprocess(self, frame):
+    raise NotImplementedError

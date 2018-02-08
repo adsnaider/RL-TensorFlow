@@ -11,10 +11,11 @@ class Environment(object):
   # actions: The number of finite actions that the agent can take
   # observation_dims: the size of the screen that will be fed into the network
   # view: the object that will render the screen
-  def __init__(self, name, actions, observation_dims, view):
+  def __init__(self, name, actions, observation_dims, rendering, view):
     self.name = name
     self.actions = actions
     self.observation_dims = observation_dims
+    self.rendering = rendering
     self.view = view
 
   def new_game(self):

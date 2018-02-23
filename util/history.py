@@ -14,8 +14,8 @@ class History(object):
   def append(self, frame):
     assert (frame.shape == self.history.shape[1:])
     self.history[:-1] = self.history[1:]
-    self.history[-1] = frame_batch
-    self.length = max(self.length + 1, self.history.shape[0])
+    self.history[-1] = frame
+    self.length = min(self.length + 1, self.history.shape[0])
 
   def reset(self):
     self.history *= 0

@@ -1,3 +1,6 @@
+# tf results
+checkpoints/*
+summaries/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

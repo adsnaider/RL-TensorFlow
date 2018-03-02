@@ -42,6 +42,8 @@ class View(object):
     self.present_frame = None
 
   def create_screen(self):
+    pygame.init()
+    pygame.display.set_caption(self.name)
     self.screen = pygame.display.set_mode(self.window_dims)
 
   def get_current_frame(self):

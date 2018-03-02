@@ -32,7 +32,7 @@ def conv2d(x,
         trainable=trainable)
 
     conv = tf.nn.conv2d(x, w, strides, padding, name='hidden_conv')
-    out = tf.nn.bias_add(conv, b)
+    out = conv + b
     if (activation_fn is not None):
       out = activation_fn(out)
     return w, b, out

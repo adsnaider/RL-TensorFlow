@@ -5,6 +5,7 @@ from __future__ import print_function
 import pygame
 import random
 import time
+import math
 
 from environment.environment import Environment
 from environment.view import View, DrawableRect
@@ -17,10 +18,18 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)  # Initialize our screen
 
 SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 640
+SCREEN_HEIGHT = 800
 screen_dims = [SCREEN_WIDTH, SCREEN_HEIGHT]
 SCREEN_COLOR = BLACK
 ACTIONS = 3  # Up, down, nothing
+
+MAX_SCORE = 1
+
+
+def clamp(val, minN, maxN):
+  val = max(minN, val)
+  val = min(maxN, val)
+  return val
 
 
 class Pong(Environment):
@@ -45,7 +54,6 @@ class Pong(Environment):
     self.paddle_nn.reset(self.view.screen_dims, 'LEFT')
     self.paddle_ai.reset(self.view.screen_dims, 'RIGHT')
     self.ball.reset(self.view.screen_dims)
-    self.score = 0
 
   def new_game(self):
     self.reset()
@@ -70,12 +78,14 @@ class Pong(Environment):
                              self.view.screen_dims)
     self.score += point
     if (point != 0):
-      terminal = True
       self.reset()
+    if (abs(self.score) == MAX_SCORE):
+      terminal = True
+      self.score = 0
     else:
       terminal = False
     self._update_view()
-    return self.preprocess(self.view.get_current_frame()), self.score, terminal
+    return self.preprocess(self.view.get_current_frame()), point, terminal
 
   def _update_view(self):
     self.view.update(self.draw_list, SCREEN_COLOR)
@@ -93,13 +103,16 @@ class Ball(DrawableRect):
   # Size of ball
   WIDTH = 20
   HEIGHT = 20
-  X_SPEED = 30
-  Y_SPEED = 20
+  SPEED = 10
   COLOR = WHITE
 
   def __init__(self, window_ratio):
     super(Ball, self).__init__(0, 0, self.WIDTH, self.HEIGHT, self.COLOR)
     self.window_ratio = window_ratio
+    self.velocity = np.array([0, 0])
+    self.position = np.array([0, 0])
+    self.x = self.position[0]
+    self.y = self.position[1]
 
   # Returns the a value for the reward as viewed from paddle1
   def update(self, paddle1, paddle2, window_dims):
@@ -115,30 +128,50 @@ class Ball(DrawableRect):
 
     result = 0
     value = self._collision(paddleLeft, paddleRight)
-    if (value != 0):
-      self.x_direction = value
-    if (self.y_direction == -1):
-      if (self.y <= 0):
-        self.y_direction = 1
-    if (self.y_direction == 1):
-      if (self.y + self.HEIGHT >= window_dims[1]):
-        self.y_direction = -1
-    if (self.x + self.WIDTH <= 0):
+    # Collision with left paddle
+    if (value == 1):
+      distance_ratio = (self.y + self.HEIGHT // 2) - (
+          paddleLeft.y + paddleLeft.HEIGHT // 2)
+      distance_ratio = distance_ratio / (paddleLeft.HEIGHT // 2)
+      distance_ratio = clamp(distance_ratio, -0.9, 0.9)
+      percent_y = math.atan(distance_ratio)
+      self.velocity = np.array([1 - abs(percent_y), percent_y])
+      self.velocity *= self.SPEED
+    elif (self.x + self.WIDTH <= 0):
       result = -1
-    if (self.x >= window_dims[0]):
+    # Collision wiht right paddle
+    if (value == -1):
+      distance_ratio = (self.y + self.HEIGHT // 2) - (
+          paddleRight.y + paddleRight.HEIGHT // 2)
+      distance_ratio = distance_ratio / (paddleRight.HEIGHT // 2)
+      distance_ratio = clamp(distance_ratio, -0.9, 0.9)
+      percent_y = math.atan(distance_ratio)
+      self.velocity = np.array([abs(percent_y) - 1, percent_y])
+      self.velocity *= self.SPEED
+    elif (self.x >= window_dims[0]):
       result = 1
-    self.x += self.x_direction * self.X_SPEED
-    self.y += self.y_direction * self.Y_SPEED
+
+    if (self.y <= 0):
+      self.velocity[1] = abs(self.velocity[1])
+    if (self.y + self.HEIGHT >= SCREEN_HEIGHT):
+      self.velocity[1] = -abs(self.velocity[1])
+
+    self.position += self.velocity.astype(np.int32)
+    self.x = self.position[0]
+    self.y = self.position[1]
     return result * score_multiplier
 
   def reset(self, screen_dims):
-    self.x = screen_dims[0] // 2 - self.WIDTH // 2
-    self.y = screen_dims[1] // 2 - self.HEIGHT // 2
-    self.x_direction = 2 * random.randint(0, 1) - 1
-    self.y_direction = 2 * random.randint(0, 1) - 1
+    self.position = [
+        screen_dims[0] // 2 - self.WIDTH // 2,
+        screen_dims[1] // 2 - self.HEIGHT // 2
+    ]
+    self.x = self.position[0]
+    self.y = self.position[1]
+    self.velocity = self.SPEED * np.array([2 * random.randint(0, 1) - 1, 0])
 
   def _collision(self, paddleLeft, paddleRight):
-    if (self.x_direction == 1):
+    if (self.x > 0):
       if (self.x + self.WIDTH >= paddleRight.x and self.y >= paddleRight.y and
           self.y <= paddleRight.y + Paddle.HEIGHT):
         return -1
@@ -152,10 +185,10 @@ class Ball(DrawableRect):
 class Paddle(DrawableRect):
   #Size of paddle
   WIDTH = 10
-  HEIGHT = 60
+  HEIGHT = 100
   BUFFER = 5
 
-  SPEED = 18
+  SPEED = 5
 
   COLOR = WHITE
 
@@ -179,12 +212,11 @@ class Paddle(DrawableRect):
       self.y = SCREEN_HEIGHT - self.HEIGHT
 
   def reset(self, screen_dims, pos):
+    self.y = screen_dims[1] // 2 - self.HEIGHT // 2
     if self.pos == 'LEFT':
       self.x = self.BUFFER
-      self.y = screen_dims[1] // 2
     elif self.pos == 'RIGHT':
       self.x = screen_dims[0] - self.BUFFER - self.WIDTH
-      self.y = screen_dims[1] // 2
 
 
 if __name__ == "__main__":

@@ -31,21 +31,27 @@ flags.DEFINE_string('output_activation_fn', 'None',
 
 # Agent params
 flags.DEFINE_string('agent', 'DQL', 'Type of agent to use')
-flags.DEFINE_float('gamma', 0.95, 'Reward discount factor')
+flags.DEFINE_float('gamma', 0.995, 'Reward discount factor')
 flags.DEFINE_float('learning_rate', 0.1, 'Learning rate of the agent')
 flags.DEFINE_integer('history_size', 2, 'Number of observations per state')
-flags.DEFINE_integer('observation_time', 400,
+flags.DEFINE_integer('observation_time', 1500,
                      'Observation time before running network copy operation')
-flags.DEFINE_integer('memory_size', 1000, 'Size of the replay memory')
+flags.DEFINE_integer('memory_size', 5000, 'Size of the replay memory')
 flags.DEFINE_string('observation_dims', '[80, 80, 1]',
                     'The dimensions observed by the agent')
-flags.DEFINE_float('epsilon', 0.05, 'Probability of picking a random action')
+flags.DEFINE_float('initial_epsilon', 1.00,
+                   'Initial probability of picking a random action')
+flags.DEFINE_float('epsilon_decay_rate', 0.97, 'The decay rate for epsilon')
+flags.DEFINE_integer('epsilon_decay_step', 800, 'The decay step for epsilon')
 flags.DEFINE_integer('batch_size', 32, 'Batch size per iteration')
+flags.DEFINE_integer('step_size', 5, 'Number of steps before observing again')
 
 # Running
 flags.DEFINE_boolean('train', True, 'Whether to run the training iteration')
-flags.DEFINE_integer('num_steps', 100000, 'Number of training steps')
+flags.DEFINE_integer('train_steps', 100000, 'Number of training steps')
 flags.DEFINE_boolean('play', True, 'Whether to run the playing iteration')
+flags.DEFINE_integer('fps', 45, 'Speed to run the playing iterations')
+
 flags.DEFINE_integer(
     'play_steps', 100000,
     'Number of steps after training to play in the environment')
@@ -66,9 +72,9 @@ flags.DEFINE_integer('checkpoint_steps', None,
 flags.DEFINE_string('summaries_dir', 'summaries/',
                     'Directory to save summaries')
 flags.DEFINE_integer(
-    'summary_secs', 120,
+    'summary_secs', None,
     'Number of seconds during training to wait between summaries')
-flags.DEFINE_integer('summary_steps', None,
+flags.DEFINE_integer('summary_steps', 20,
                      'Number of steps to wait between summaries')
 
 flags.DEFINE_string('model_base_name', 'model.ckpt',
@@ -144,10 +150,10 @@ if __name__ == '__main__':
 
   else:
     raise ValueError('agent not defined')
+  agent.create_main_graph()
   if conf.train:
     log.info('Creating computation graph')
     agent.create_training_graph()
-    saver = None
     hooks = []
     if conf.save_checkpoints:
       hooks.append(
@@ -158,6 +164,7 @@ if __name__ == '__main__':
               saver=tf.train.Saver(),
               checkpoint_basename=conf.model_base_name,
               scaffold=None))
+
     if conf.save_summaries:
       hooks.append(
           tf.train.SummarySaverHook(
@@ -167,6 +174,7 @@ if __name__ == '__main__':
               summary_writer=None,
               scaffold=None,
               summary_op=agent.summary_op))
+    hooks.append(tf.train.StopAtStepHook(last_step=conf.train_steps))
 
     log.info('New Session')
     if conf.restore:
@@ -188,5 +196,5 @@ if __name__ == '__main__':
     sess = tf.train.MonitoredTrainingSession(
         checkpoint_dir=conf.checkpoint_restore)
     log.info('Start playing')
-    agent.play(conf.play_steps, sess)
+    agent.play(conf.play_steps, conf.fps, sess)
     sess.close()

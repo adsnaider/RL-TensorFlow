@@ -62,7 +62,7 @@ class ReplayMemory(object):
     reward = self.rewards[batch_idx - 1]
     terminal = self.terminals[batch_idx - 1]
 
-    return self.prestates, action, reward, self.poststates, terminal, possible
+    return self.prestates, action, reward, self.poststates, terminal
 
   def _retrieve_state(self, idx):
     prestate = np.zeros(

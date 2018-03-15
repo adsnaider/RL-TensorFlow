@@ -11,6 +11,18 @@ class History(object):
     self.history = np.zeros([size] + observed_dims, dtype=np.float32)
     self.length = 0
 
+  def get_oldest(self):
+    return self.history[0]
+
+  def get_newest(self):
+    return self.history[-1]
+
+  def get_prestates(self):
+    return self.history[:self.size / 2]
+
+  def get_poststates(self):
+    return self.history[self.size / 2:]
+
   def append(self, frame):
     assert (frame.shape == self.history.shape[1:])
     self.history[:-1] = self.history[1:]

@@ -34,7 +34,6 @@ class CNN(Network):
           shape=[None, history_size] + observation_dims,
           dtype=tf.float32,
           name='input')
-
       reshape = tf.reshape(
           self.inputs,
           [-1, observation_dims[0] * history_size] + observation_dims[1:])

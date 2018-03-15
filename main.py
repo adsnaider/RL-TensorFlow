@@ -2,6 +2,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from shutil import rmtree
+
+import numpy as np
+
 import tensorflow as tf
 from tensorflow import logging as log
 from tensorflow.python import debug as tf_debug
@@ -9,6 +13,7 @@ from tensorflow.python import debug as tf_debug
 from environment.pong import Pong
 
 from agents.DQL import DQL
+from agents.policy_gradient import PolicyGradient
 
 from networks.CNN import CNN
 
@@ -30,13 +35,15 @@ flags.DEFINE_string('output_activation_fn', 'None',
                     'The activation function for the output layer')
 
 # Agent params
-flags.DEFINE_string('agent', 'DQL', 'Type of agent to use')
+flags.DEFINE_string('agent', '', 'Type of agent to use')
 flags.DEFINE_float('gamma', 0.995, 'Reward discount factor')
 flags.DEFINE_float('learning_rate', 0.1, 'Learning rate of the agent')
+flags.DEFINE_float('actor_learning_rate', 0.1, 'Learning rate of the agent')
+flags.DEFINE_float('critic_learning_rate', 0.1, 'Learning rate of the agent')
 flags.DEFINE_integer('history_size', 2, 'Number of observations per state')
 flags.DEFINE_integer('observation_time', 1500,
                      'Observation time before running network copy operation')
-flags.DEFINE_integer('memory_size', 5000, 'Size of the replay memory')
+flags.DEFINE_integer('memory_size', 1000, 'Size of the replay memory')
 flags.DEFINE_string('observation_dims', '[80, 80, 1]',
                     'The dimensions observed by the agent')
 flags.DEFINE_float('initial_epsilon', 1.00,
@@ -47,13 +54,15 @@ flags.DEFINE_integer('batch_size', 32, 'Batch size per iteration')
 flags.DEFINE_integer('step_size', 5, 'Number of steps before observing again')
 
 # Running
+flags.DEFINE_integer('seed', 0,
+                     'Seed to feed the numpy random number generator')
 flags.DEFINE_boolean('train', True, 'Whether to run the training iteration')
 flags.DEFINE_integer('train_steps', 100000, 'Number of training steps')
 flags.DEFINE_boolean('play', True, 'Whether to run the playing iteration')
 flags.DEFINE_integer('fps', 45, 'Speed to run the playing iterations')
 
 flags.DEFINE_integer(
-    'play_steps', 100000,
+    'play_steps', 10000,
     'Number of steps after training to play in the environment')
 flags.DEFINE_boolean('save_checkpoints', True, 'Whether to save checkpoints')
 flags.DEFINE_boolean('save_summaries', True, 'Whether to save summaries')
@@ -89,6 +98,9 @@ flags.DEFINE_boolean('rendering', True, 'Whether to render the environment')
 #Debug
 flags.DEFINE_boolean('debug', False,
                      'Whether to start the training session in debugging mode')
+flags.DEFINE_boolean(
+    'override', False,
+    'Whether to delete the current checkpoints and summaries before starting')
 
 # Logger
 flags.DEFINE_string('verbosity', 'INFO', 'Logger level')
@@ -104,7 +116,14 @@ conf.output_activation_fn = eval(conf.output_activation_fn)
 
 log.set_verbosity(conf.verbosity)
 
+np.random.seed(conf.seed)
+tf.set_random_seed(conf.seed)
+
 if __name__ == '__main__':
+  if (conf.override):
+    log.info('Deleting checkpoints and summaries')
+    rmtree(conf.checkpoint_dir, ignore_errors=True)
+    rmtree(conf.summaries_dir, ignore_errors=True)
   log.info('Creating environment %s' % (conf.environment))
   if conf.environment == 'pong':
     environment = Pong(conf.window_name, conf.observation_dims,
@@ -147,7 +166,39 @@ if __name__ == '__main__':
     else:
       raise ValueError('network not defined')
     agent = DQL(environment, pred, target, conf)
+  elif conf.agent == 'PolicyGradient':
+    log.info('Creating network %s' % (conf.network_type))
+    if conf.network_type == 'CNN':
+      actor = CNN('policy_CNN')
+      critic = CNN('value_CNN')
+      actor.build_output_op(
+          conf.depth,
+          conf.hidden_size,
+          environment.actions,
+          conf.num_conv,
+          conf.kernel_dims,
+          conf.strides,
+          conf.observation_dims,
+          conf.history_size,
+          conf.hidden_activation_fn,
+          tf.nn.softmax,
+          trainable=True)
 
+      critic.build_output_op(
+          conf.depth,
+          conf.hidden_size,
+          1,
+          conf.num_conv,
+          conf.kernel_dims,
+          conf.strides,
+          conf.observation_dims,
+          conf.history_size,
+          conf.hidden_activation_fn,
+          conf.output_activation_fn,
+          trainable=True)
+    else:
+      raise ValueError('network not defined')
+    agent = PolicyGradient(environment, actor, critic, conf)
   else:
     raise ValueError('agent not defined')
   agent.create_main_graph()

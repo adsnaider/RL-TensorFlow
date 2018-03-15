@@ -20,7 +20,7 @@ class Network(object):
   def build_output_op(self, input_layer, hidden_sizes, output_size,
                       weights_initializer, bias_initializer,
                       hidden_activation_fn, output_activation_fn, trainable):
-    raise NotImplementedError
+    raise NotImplementedError('Abstract method must be overriden')
 
   def create_copy_op(self, target_network):
     assert (set(self.train_vars.keys()) == set(

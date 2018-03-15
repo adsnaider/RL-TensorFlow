@@ -55,7 +55,7 @@ class DQL(Agent):
       pred_output = self.pred_network.outputs
       self.target_output = self.target_network.outputs
 
-      batch_range = tf.range(tf.shape(pred_output)[0])
+      batch_range = tf.range(tf.shape(self.action_input)[0])
       action_idx = tf.stack(
           [batch_range, tf.cast(self.action_input, tf.int32)], axis=1)
       pred_value = tf.gather_nd(pred_output, action_idx, 'prediction_value')

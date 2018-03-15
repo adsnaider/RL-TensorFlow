@@ -14,7 +14,7 @@ class Environment(object):
   def new_game(self):
     raise NotImplementedError
 
-  def step(self, action):
+  def step(self, action, step_size=1):
     raise NotImplementedError
 
   def preprocess(self, frame):

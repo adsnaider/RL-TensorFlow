@@ -19,11 +19,11 @@ BLACK = (0, 0, 0)  # Initialize our screen
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
-screen_dims = [SCREEN_WIDTH, SCREEN_HEIGHT]
+SCREEN_DIMS = [SCREEN_WIDTH, SCREEN_HEIGHT]
 SCREEN_COLOR = BLACK
 ACTIONS = 3  # Up, down, nothing
 
-MAX_SCORE = 1
+MAX_SCORE = 10
 
 
 def clamp(val, minN, maxN):
@@ -40,7 +40,7 @@ class Pong(Environment):
     self.name = name
     self.observation_dims = np.array(observation_dims)
     self.window_dims = np.array(window_dims)
-    self.window_ratio = self.window_dims / screen_dims
+    self.window_ratio = self.window_dims / SCREEN_DIMS
     self.rendering = rendering
 
     self.paddle_nn = Paddle('LEFT', self.window_ratio)  # DQN
@@ -48,7 +48,7 @@ class Pong(Environment):
     self.ball = Ball(self.window_ratio)
     self.draw_list = [self.paddle_nn, self.paddle_ai, self.ball]
     self.score = 0
-    self.view = View(name, screen_dims, window_dims)
+    self.view = View(name, SCREEN_DIMS, window_dims)
 
   def reset(self):
     self.paddle_nn.reset(self.view.screen_dims, 'LEFT')
@@ -74,17 +74,18 @@ class Pong(Environment):
       action = -1
     self.paddle_ai.update(action)  # AI will do 0, 1, 2
 
-    point = self.ball.update(self.paddle_nn, self.paddle_ai,
-                             self.view.screen_dims)
+    point = self.ball.update(self.paddle_nn, self.paddle_ai, SCREEN_DIMS)
     self.score += point
-    if (point != 0):
-      self.reset()
-    if (abs(self.score) == MAX_SCORE):
-      terminal = True
-      self.score = 0
-    else:
-      terminal = False
     self._update_view()
+
+    terminal = False
+    if (point != 0):
+      terminal = True
+      self.reset()
+
+      if (abs(self.score) >= MAX_SCORE):
+        self.score = 0
+
     return self.preprocess(self.view.get_current_frame()), point, terminal
 
   def _update_view(self):

@@ -4,6 +4,8 @@ from __future__ import print_function
 
 import numpy as np
 
+from collections import deque
+
 
 class ReplayMemory(object):
 
@@ -16,15 +18,15 @@ class ReplayMemory(object):
     self.actions = np.zeros([memory_size], dtype=np.uint8)
     self.rewards = np.zeros([memory_size], dtype=np.uint8)
     self.terminals = np.zeros([memory_size], np.bool)
-    self.batch_size = batch_size
 
+    self.batch_size = batch_size
     self.prestates = np.zeros(
         [batch_size, history_size] + observation_dims, dtype=np.float32)
     self.poststates = np.zeros(
         [batch_size, history_size] + observation_dims, dtype=np.float32)
 
-    self.count = 0
     self.index = 0
+    self.count = 0
 
   def add(self, observation, action, reward, terminal):
     self.observations[self.index, ...] = observation
@@ -32,15 +34,23 @@ class ReplayMemory(object):
     self.rewards[self.index] = reward
     self.terminals[self.index] = terminal
 
+    self.index = (self.index + 1) % self.memory_size
     self.count = min(self.count + 1, self.memory_size)
-    self.index += 1
-    self.index %= self.memory_size
 
   def filled(self):
     return self.count == self.memory_size
 
+  def clear(self):
+    self.observations *= 0
+    self.actions *= 0
+    self.rewards *= 0
+    self.terminals *= 0
+    self.count = 0
+
+    self.prestates *= 0
+    self.poststates *= 0
+
   def sample(self):
-    assert (self.filled())
     possible = range(self.memory_size)
     possible[:] = [
         i for i in range(len(possible))
@@ -53,14 +63,17 @@ class ReplayMemory(object):
             ]].any()))
     ]
 
-    batch_idx = np.random.choice(possible, self.batch_size, replace=False)
+    if (len(possible) < self.batch_size):
+      batch_idx = possible
+    else:
+      batch_idx = np.random.choice(possible, self.batch_size, replace=False)
 
     for i, x in enumerate(batch_idx):
       self.prestates[i, ...], self.poststates[i, ...] = self._retrieve_state(x)
 
-    action = self.actions[batch_idx - 1]
-    reward = self.rewards[batch_idx - 1]
-    terminal = self.terminals[batch_idx - 1]
+    action = self.actions[batch_idx]
+    reward = self.rewards[batch_idx]
+    terminal = self.terminals[batch_idx]
 
     return self.prestates, action, reward, self.poststates, terminal
 

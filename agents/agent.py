@@ -39,6 +39,8 @@ class Agent(object):
       # At the beginning action might be wrong since history hasn't been filled yet
       action = self.predict(self.history.get(), sess)
       observation, _, terminal = self.environment.step(action)
+      if (terminal):
+        self.history.reset()
       score = self.environment.score
       log.debug('Step: {:<6} Score: {:<6} Terminal: {}'.format(
           i, score, terminal))

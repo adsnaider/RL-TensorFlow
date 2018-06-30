@@ -161,6 +161,18 @@ class Game:
     else:
       return False, None, "You need to join the game first!"
 
+  def CanAttack(self, x, y):
+    adjacent = [
+        self.GetCell(x + 1, y),
+        self.GetCell(x - 1, y),
+        self.GetCell(x, y + 1),
+        self.GetCell(x, y - 1)
+    ]
+    for cell in adjacent:
+      if cell is not None and cell.owner == self.uid:
+        return True
+    return False
+
   def BuildBase(self, x, y):
     if self.token != '':
       headers = {'content-type': 'application/json'}

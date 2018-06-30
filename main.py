@@ -98,6 +98,8 @@ flags.DEFINE_boolean('rendering', True, 'Whether to render the environment')
 #Debug
 flags.DEFINE_boolean('debug', False,
                      'Whether to start the training session in debugging mode')
+flags.DEFINE_integer('log_step', 100,
+                     'Number of steps to wait between log outputs')
 flags.DEFINE_boolean(
     'override', False,
     'Whether to delete the current checkpoints and summaries before starting')
@@ -122,7 +124,7 @@ tf.set_random_seed(conf.seed)
 if __name__ == '__main__':
   if (conf.override):
     log.info('Deleting checkpoints and summaries')
-    rmtree(conf.checkpoint_dir, ignore_errors=True)
+    rmtree(conf.checkpoint_store, ignore_errors=True)
     rmtree(conf.summaries_dir, ignore_errors=True)
   log.info('Creating environment %s' % (conf.environment))
   if conf.environment == 'pong':

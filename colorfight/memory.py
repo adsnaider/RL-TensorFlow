@@ -16,7 +16,7 @@ class Memory(object):
     self.grid_observations = np.zeros([memory_size] + grid_dims, np.float32)
     self.extra_observations = np.zeros([memory_size, n_extra], np.float32)
     self.actions = np.zeros([memory_size, action_space], np.uint8)
-    self.rewards = np.zeros([memory_size], np.uint8)
+    self.rewards = np.zeros([memory_size], np.int32)
 
     self.batch_size = batch_size
     self.prestates_grid = np.zeros([batch_size] + grid_dims, np.float32)
@@ -30,7 +30,7 @@ class Memory(object):
   def add(self, grid_state, extra_state, action, reward):
     self.grid_observations[self.index, ...] = grid_state
     self.extra_observations[self.index, ...] = extra_state
-    self.actions[self.index, ...] = action
+    self.actions[self.index] = action
     self.rewards[self.index] = reward
 
     self.index = (self.index + 1) % self.memory_size

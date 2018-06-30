@@ -26,6 +26,7 @@ class PolicyGradient(Agent):
     self.train_steps = conf.train_steps
     self.batch_size = conf.batch_size
     self.memory_size = conf.memory_size
+    self.log_step = conf.log_step
 
     self.state_shape = [self.history_size] + self.observation_dims
 
@@ -68,18 +69,18 @@ class PolicyGradient(Agent):
       policy_active = tf.gather_nd(policy_output, action_idx, 'policy_taken')
 
       log_prob = tf.log(policy_active, name='log_prob')
-      self.actor_loss = tf.identity(
-          -tf.reduce_mean(
-              tf.multiply(tf.stop_gradient(td_error[:, 0]), log_prob)),
-          name='actor_loss')
       self.actor_optimizer = tf.train.GradientDescentOptimizer(
-          self.actor_learning_rate).minimize(
-              self.actor_loss, name='actor_optimizer')
-      self.train_op = tf.group(self.actor_optimizer, self.value_optimizer,
+          self.actor_learning_rate)
+      not_loss = -tf.reduce_mean(
+          tf.multiply(tf.stop_gradient(td_error), log_prob))
+      print(not_loss)
+      grads = self.actor_optimizer.compute_gradients(not_loss)
+      actor_train_step = self.actor_optimizer.apply_gradients(grads)
+
+      self.train_op = tf.group(actor_train_step, self.value_optimizer,
                                self.global_step_increment_op)
 
       value_summary = tf.summary.scalar('value_loss', self.value_loss)
-      actor_summary = tf.summary.scalar('actor_loss', self.actor_loss)
       self.summary_op = tf.summary.merge_all()
 
   def _get_next_action(self, state, sess):
@@ -115,8 +116,8 @@ class PolicyGradient(Agent):
               }), [-1, 1])
 
       post_value = np.multiply(post_value, 1 - terminal.astype(np.int32))
-      _, actor_loss, value_loss = step_context.run_with_hooks(
-          [self.train_op, self.actor_loss, self.value_loss],
+      _, value_loss = step_context.run_with_hooks(
+          [self.train_op, self.value_loss],
           feed_dict={
               self.post_value: post_value,
               self.actor_state: prestate,
@@ -124,10 +125,11 @@ class PolicyGradient(Agent):
               self.reward: reward,
               self.action: action
           })
-      log.debug(
-          'Step {}/{:<6} Actor loss {:<16.6f} Value loss {:<16.6f} Score {:<10} Policy Output: {}'.
-          format(step, self.train_steps, actor_loss, value_loss,
-                 self.environment.score, output))
+      if (step % self.log_step == 0):
+        log.debug(
+            'Step {}/{:<6} Value loss {:<16.6f} Score {:<10} Policy Output: {}'.
+            format(step, self.train_steps, value_loss, self.environment.score,
+                   output))
 
   def train(self, sess):
     if (self.actor_optimizer is None):

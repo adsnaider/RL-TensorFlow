@@ -7,7 +7,6 @@ from environment.environment import Environment
 import numpy as np
 
 from colorfight import colorfight as cf_API
-import glog as log
 
 # Maximum number of players excluding itself
 MAX_NUM_PLAYERS = 14
@@ -24,8 +23,8 @@ GRID_SIZE = [30, 30]
 # Gold Cell: (1, 0)
 # Energy cell: (1, 0)
 # Build type (base or no base) (1, 0)
-
-DEPTH = 1 + 1 + MAX_NUM_PLAYERS + 1 + 1 + MAX_NUM_PLAYERS + 1 + 1 + 1 + 1
+# Can be taken (1, 0)
+DEPTH = 1 + 1 + MAX_NUM_PLAYERS + 1 + 1 + MAX_NUM_PLAYERS + 1 + 1 + 1 + 1 + 1
 GRID_INPUT_SHAPE = [GRID_SIZE[0], GRID_SIZE[1], DEPTH]
 
 # Extra features:
@@ -44,11 +43,12 @@ ACTION_SPACE = 4
 
 class ColorFightEnv(Environment):
 
-  def __init__(self, ai_name):
+  def __init__(self, ai_name, log):
     self.ai_name = ai_name
     self.game = cf_API.Game()
     self.grid_state = np.zeros(shape=GRID_INPUT_SHAPE, dtype=np.float32)
     self.extra_state = np.zeros(shape=EXTRA_INPUT_SIZE, dtype=np.float32)
+    self.log = log
     self.user_dict = None
     self.delta_score = 0
     self.previous_score = 0
@@ -56,9 +56,10 @@ class ColorFightEnv(Environment):
 
   def join_game(self):
     if self.game.JoinGame(self.ai_name):
+      self.refresh()
       return True
     else:
-      log.warning('Couldn\'t join game')
+      self.log.warning('Couldn\'t join game')
       return False
 
   def refresh(self):
@@ -70,20 +71,24 @@ class ColorFightEnv(Environment):
 
   def step(self, x, y, action, **kwargs):
     if (action == 'attack'):
+      self.log.debug('Requesting attack ({}, {})'.format(x, y))
       _, err, msg = self.game.AttackCell(x, y)
     elif (action == 'build_base'):
+      self.log.debug('Requesting base ({}, {})'.format(x, y))
       _, err, msg = self.game.BuildBase(x, y)
     elif (action == 'blast'):
+      self.log.debug('Requesting blast ({}, {})'.format(x, y))
       _, err, msg = self.game.Blast(x, y, kwargs['blast_dir'],
                                     kwargs['blast_type'])
     else:
-      log.warning('Action is nonsensical')
+      self.log.warning('Action is nonsensical')
       return False
 
+    self.refresh()
     reward = self.delta_score
-    if (err is not None):
-      reward -= -10
-      log.debug("Received error code {}:{}".format(err, msg))
+    if (err is not None and err != 3):
+      reward -= 10
+      self.log.debug("Received error code {}:{}".format(err, msg))
     return reward
 
   def populate_state(self):
@@ -108,6 +113,9 @@ class ColorFightEnv(Environment):
                         6 + 2 * MAX_NUM_PLAYERS] = cell.cellType == 'energy'
         self.grid_state[x, y, 7 + 2 * MAX_NUM_PLAYERS] = cell.isBase
 
+        self.grid_state[x, y, 8 + 2 * MAX_NUM_PLAYERS] = self.game.CanAttack(
+            x, y)
+
     self.extra_state[0] = self.game.energy
     self.extra_state[1] = self.game.gold
     self.extra_state[2] = self.game.cdTime > self.game.currTime
@@ -118,4 +126,5 @@ class ColorFightEnv(Environment):
     self.user_dict = dict(zip([x.id for x in users], indeces))
     self.user_dict.pop(self.game.uid, None)
     if (len(self.user_dict) > MAX_NUM_PLAYERS):
-      log.warning('Number of players in game exeeds capable number of players')
+      self.log.warning(
+          'Number of players in game exeeds capable number of players')

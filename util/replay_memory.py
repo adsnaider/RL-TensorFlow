@@ -16,7 +16,7 @@ class ReplayMemory(object):
 
     self.observations = np.zeros([memory_size] + observation_dims, np.float32)
     self.actions = np.zeros([memory_size], dtype=np.uint8)
-    self.rewards = np.zeros([memory_size], dtype=np.uint8)
+    self.rewards = np.zeros([memory_size], dtype=np.int32)
     self.terminals = np.zeros([memory_size], np.bool)
 
     self.batch_size = batch_size
